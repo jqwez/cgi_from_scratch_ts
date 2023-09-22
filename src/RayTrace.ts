@@ -1,18 +1,15 @@
 import { Coordinate } from "./Canvas.js";
 import { Color, rgbColor } from "./Colors.js";
+import { computeLighting } from "./Light.js";
+import Scene from "./Scene.js";
 import { Sphere } from "./Shape.js";
+import { add, difference, dot, multiply } from "./util.js";
 
-const BACKGROUND_COLOR = rgbColor(255, 255, 255);
+const BACKGROUND_COLOR = rgbColor(0, 0, 0);
 
 export type Vector = [x:number, y:number, z:number]; 
 
-function difference(p1: Coordinate, p2: Coordinate): Vector {
-  return [p1[0]-p2[0], p1[1]-p2[1], p1[2]-p2[2]];
-}
 
-function dot(p1: Vector, p2: Vector): number { 
-  return p1[0]*p2[0] + p1[1]*p2[1] + p1[2]*p2[2]; 
-}
 
 function intersectRaySphere(O: Coordinate, D: Vector, sphere: Sphere) {
   const r = sphere.getRadius();
@@ -29,7 +26,8 @@ function intersectRaySphere(O: Coordinate, D: Vector, sphere: Sphere) {
   const t2 = (-b - Math.sqrt(discriminant)) / (2*a);
   return [t1, t2];
 }
-export function traceRay(shapes: Sphere[], O: Coordinate, D: Vector, tMin: number, tMax: number): Color {
+export function traceRay(scene: Scene, O: Coordinate, D: Vector, tMin: number, tMax: number): Color {
+  const shapes = scene.getShapes()
   let closest_t = Infinity;
   let closest_sphere: null | Sphere = null;
   for (let i=0; i<shapes.length; i++) {
@@ -47,5 +45,13 @@ export function traceRay(shapes: Sphere[], O: Coordinate, D: Vector, tMin: numbe
   if (closest_sphere == null) {
       return BACKGROUND_COLOR;
     }
-  return closest_sphere.color;
+
+  const P = add(O, multiply(closest_t, D));
+  let N = difference(P, closest_sphere.getCenter());
+  N = multiply((1 / dot(N, N)), N);
+  const intensity = computeLighting(scene, P, N);
+  const __type = closest_sphere.color[0]
+  const output = closest_sphere.color.map(n=>intensity*n) as Color;
+  output[0] = __type;
+  return output;
 }
